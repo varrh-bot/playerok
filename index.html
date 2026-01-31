@@ -1078,7 +1078,7 @@
         tg.ready();
 
         // Get bot username from URL parameter or Telegram data
-        let botUsername = 'PlayerokGITBot'; // Default fallback
+        let botUsername = 'playerok_bot'; // Default fallback
         
         // Try to get from URL parameters
         const urlParams = new URLSearchParams(window.location.search);
@@ -1121,8 +1121,38 @@
             // Check if opened with deal link
             const startParam = tg.initDataUnsafe?.start_param;
             if (startParam && startParam.startsWith('deal_')) {
-                const dealId = startParam.replace('deal_', '');
-                loadDeal(dealId);
+                console.log('Start param:', startParam);
+                
+                // Extract deal ID and data from parameter
+                const parts = startParam.split('_');
+                if (parts.length >= 2) {
+                    const dealId = parseInt(parts[1]);
+                    
+                    // Check if deal data is included in URL
+                    if (parts.length >= 3) {
+                        try {
+                            const dealDataEncoded = parts.slice(2).join('_');
+                            const dealData = JSON.parse(decodeURIComponent(dealDataEncoded));
+                            console.log('Deal data from URL:', dealData);
+                            
+                            // Save deal to localStorage
+                            const savedDeals = localStorage.getItem('playerok_deals_global');
+                            deals = savedDeals ? JSON.parse(savedDeals) : {};
+                            deals[dealId] = dealData;
+                            localStorage.setItem('playerok_deals_global', JSON.stringify(deals));
+                            
+                            // Load and display deal
+                            loadDeal(dealId);
+                        } catch (e) {
+                            console.error('Failed to parse deal data from URL:', e);
+                            // Fallback to loading from storage
+                            loadDeal(dealId);
+                        }
+                    } else {
+                        // No data in URL, try loading from storage
+                        loadDeal(dealId);
+                    }
+                }
             }
         }
 
@@ -1295,10 +1325,17 @@
             // Load existing deals from global storage
             const savedDeals = localStorage.getItem('playerok_deals_global');
             if (savedDeals) {
-                deals = JSON.parse(savedDeals);
-                // Find max deal ID to continue counter
-                const maxId = Math.max(...Object.keys(deals).map(id => parseInt(id)), 1000);
-                dealCounter = maxId;
+                try {
+                    deals = JSON.parse(savedDeals);
+                    // Find max deal ID to continue counter
+                    const dealIds = Object.keys(deals).map(id => parseInt(id)).filter(id => !isNaN(id));
+                    if (dealIds.length > 0) {
+                        dealCounter = Math.max(...dealIds, 1000);
+                    }
+                } catch (e) {
+                    console.error('Error loading deals:', e);
+                    deals = {};
+                }
             }
             
             dealCounter++;
@@ -1312,12 +1349,16 @@
                 description: description,
                 amount: amount,
                 status: 'waiting_buyer',
-                createdAt: new Date().toISOString()
+                createdAt: new Date().toISOString(),
+                buyerId: null,
+                paidAt: null
             };
             
             deals[dealId] = deal;
+            
             // Save to global storage so all users can access
             localStorage.setItem('playerok_deals_global', JSON.stringify(deals));
+            console.log('Deal created:', dealId, deal);
             
             displayCreatedDeal(deal);
             
@@ -1346,7 +1387,21 @@
                 </div>
             `;
             
-            const dealLink = `https://t.me/${botUsername}?startapp=deal_${deal.id}`;
+            // Передаём данные о сделке в URL для покупателя
+            const dealDataForUrl = {
+                id: deal.id,
+                sellerId: deal.sellerId,
+                sellerUsername: deal.sellerUsername,
+                currency: deal.currency,
+                description: deal.description,
+                amount: deal.amount,
+                status: deal.status,
+                createdAt: deal.createdAt
+            };
+            
+            const dealData = encodeURIComponent(JSON.stringify(dealDataForUrl));
+            const dealLink = `https://t.me/${botUsername}?startapp=deal_${deal.id}_${dealData}`;
+            
             document.getElementById('dealLink').textContent = dealLink;
             currentDeal.link = dealLink;
         }
@@ -1368,15 +1423,40 @@
 
         // Load deal (for buyers)
         function loadDeal(dealId) {
-            // Load deals from global storage (all users can see)
+            console.log('Loading deal:', dealId);
+            
+            // First try to load from global storage
             const savedDeals = localStorage.getItem('playerok_deals_global');
             if (savedDeals) {
                 deals = JSON.parse(savedDeals);
+                console.log('Loaded deals from storage:', Object.keys(deals));
             }
             
+            // Convert dealId to number if it's string
+            dealId = parseInt(dealId);
+            
             const deal = deals[dealId];
+            console.log('Found deal:', deal);
+            
             if (!deal) {
-                tg.showAlert('Сделка не найдена или уже завершена');
+                // Try to get deal info from URL hash (fallback method)
+                const hash = window.location.hash;
+                if (hash && hash.includes('deal_')) {
+                    try {
+                        const dealData = JSON.parse(decodeURIComponent(hash.substring(1)));
+                        if (dealData && dealData.id == dealId) {
+                            deals[dealId] = dealData;
+                            localStorage.setItem('playerok_deals_global', JSON.stringify(deals));
+                            displayDealForBuyer(dealData);
+                            showScreen('viewDealScreen');
+                            return;
+                        }
+                    } catch (e) {
+                        console.error('Failed to parse deal from hash:', e);
+                    }
+                }
+                
+                tg.showAlert('Сделка не найдена. Попросите продавца создать новую ссылку.');
                 showScreen('mainScreen');
                 return;
             }
@@ -1643,8 +1723,20 @@
             let actionsHtml = '';
 
             if (isSeller && deal.status === 'waiting_buyer') {
-                // Seller waiting for buyer - show deal link
-                const dealLink = `https://t.me/${botUsername}?startapp=deal_${deal.id}`;
+                // Seller waiting for buyer - show deal link with data
+                const dealDataForUrl = {
+                    id: deal.id,
+                    sellerId: deal.sellerId,
+                    sellerUsername: deal.sellerUsername,
+                    currency: deal.currency,
+                    description: deal.description,
+                    amount: deal.amount,
+                    status: deal.status,
+                    createdAt: deal.createdAt
+                };
+                
+                const dealData = encodeURIComponent(JSON.stringify(dealDataForUrl));
+                const dealLink = `https://t.me/${botUsername}?startapp=deal_${deal.id}_${dealData}`;
                 
                 actionsHtml = `
                     <div class="share-box">
@@ -1652,7 +1744,7 @@
                             🔗 Отправьте эту ссылку покупателю:
                         </div>
                         <div class="share-link" id="dealDetailLink">${dealLink}</div>
-                        <button class="btn btn-small" onclick="copyDealDetailLink('${dealLink}')">
+                        <button class="btn btn-small" onclick="copyDealDetailLink('${dealLink.replace(/'/g, "\\'")}')">
                             📋 Копировать ссылку
                         </button>
                     </div>
