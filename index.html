@@ -552,6 +552,98 @@
             border: 1px solid rgba(16, 185, 129, 0.3);
         }
 
+        .status-completed {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60A5FA;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        /* Deal List Item */
+        .deal-list-item {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .deal-list-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #3B82F6, #60A5FA);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .deal-list-item:active {
+            transform: scale(0.98);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .deal-list-item:active::before {
+            opacity: 1;
+        }
+
+        .deal-list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .deal-list-id {
+            font-size: 14px;
+            color: #9CA3AF;
+            font-weight: 600;
+        }
+
+        .deal-list-amount {
+            font-size: 20px;
+            font-weight: 700;
+            color: #60A5FA;
+        }
+
+        .deal-list-description {
+            color: #D1D5DB;
+            margin-bottom: 12px;
+            font-size: 14px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .deal-list-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .deal-list-role {
+            font-size: 12px;
+            color: #9CA3AF;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .empty-icon {
+            font-size: 80px;
+            opacity: 0.2;
+            margin-bottom: 16px;
+        }
+
         /* Loading Spinner */
         .loading {
             text-align: center;
@@ -712,18 +804,25 @@
                         <div class="step-number">4️⃣</div>
                         <div class="step-text">Покупатель получает свой заказ</div>
                     </div>
+                    <div class="step">
+                        <div class="step-number">5️⃣</div>
+                        <div class="step-text">Продавец получает средства на свои реквизиты</div>
+                    </div>
                 </div>
             </div>
 
             <button class="btn btn-primary" onclick="checkRequisitesAndCreateDeal()">
                 💼 Создать сделку
             </button>
+            <button class="btn btn-secondary" onclick="showMyDeals()">
+                📋 Мои сделки
+            </button>
             <button class="btn btn-secondary" onclick="showScreen('requisitesScreen')">
                 💳 Мои реквизиты
             </button>
 
             <div class="footer-links">
-                <a href="https://t.me/PlayerOK_Support" class="footer-link">💬 Поддержка</a>
+                <a href="https://t.me/PlayerOKTransfer" class="footer-link">💬 Поддержка</a>
                 <a href="https://playerok.com" class="footer-link">🌐 Сайт</a>
             </div>
         </div>
@@ -765,6 +864,34 @@
                     <div class="currency-name">STARS</div>
                 </div>
             </div>
+        </div>
+
+        <!-- My Deals Screen -->
+        <div id="myDealsScreen" class="screen">
+            <button class="back-btn" onclick="showScreen('mainScreen')">←</button>
+            
+            <h2 style="margin-bottom: 20px; font-size: 24px;">📋 Мои сделки</h2>
+
+            <div id="dealsListContainer"></div>
+
+            <div id="noDealsMessage" style="text-align: center; padding: 40px 20px; display: none;">
+                <div style="font-size: 64px; margin-bottom: 16px; opacity: 0.3;">📋</div>
+                <p style="color: #9CA3AF; font-size: 16px;">У вас пока нет сделок</p>
+                <button class="btn btn-primary" onclick="showScreen('mainScreen')" style="margin-top: 20px; max-width: 200px;">
+                    Создать первую сделку
+                </button>
+            </div>
+        </div>
+
+        <!-- Deal Detail Screen -->
+        <div id="dealDetailScreen" class="screen">
+            <button class="back-btn" onclick="showMyDeals()">←</button>
+            
+            <h2 style="margin-bottom: 20px; font-size: 24px;">💼 Детали сделки</h2>
+
+            <div class="deal-card" id="dealDetailCard"></div>
+
+            <div id="dealDetailActions"></div>
         </div>
 
         <!-- Enter Requisite Screen -->
@@ -906,8 +1033,8 @@
                 <p style="color: #FCD34D; margin-bottom: 8px;">
                     📦 Передайте подарки менеджеру:
                 </p>
-                <a href="https://t.me/PlayerokTransfer" style="color: #60A5FA; text-decoration: none; font-weight: 600;">
-                    @PlayerokTransfer
+                <a href="https://t.me/PlayerOKTransfer" style="color: #60A5FA; text-decoration: none; font-weight: 600;">
+                    @PlayerOKTransfer
                 </a>
             </div>
 
@@ -934,7 +1061,7 @@
 
             <p style="color: #9CA3AF; margin: 20px 0; line-height: 1.6;">
                 Убедитесь, что вы отправили подарки менеджеру 
-                <a href="https://t.me/PlayerokTransfer" style="color: #60A5FA;">@PlayerokTransfer</a>
+                <a href="https://t.me/PlayerOKTransfer" style="color: #60A5FA;">@PlayerOKTransfer</a>
                 и попробуйте снова через несколько минут.
             </p>
 
@@ -1150,6 +1277,15 @@
                 return;
             }
             
+            // Load existing deals from global storage
+            const savedDeals = localStorage.getItem('playerok_deals_global');
+            if (savedDeals) {
+                deals = JSON.parse(savedDeals);
+                // Find max deal ID to continue counter
+                const maxId = Math.max(...Object.keys(deals).map(id => parseInt(id)), 1000);
+                dealCounter = maxId;
+            }
+            
             dealCounter++;
             const dealId = dealCounter;
             
@@ -1165,7 +1301,8 @@
             };
             
             deals[dealId] = deal;
-            localStorage.setItem('playerok_deals', JSON.stringify(deals));
+            // Save to global storage so all users can access
+            localStorage.setItem('playerok_deals_global', JSON.stringify(deals));
             
             displayCreatedDeal(deal);
             
@@ -1194,7 +1331,7 @@
                 </div>
             `;
             
-            const botUsername = 'PlayerokGITbot'; // Replace with actual bot username
+            const botUsername = 'your_bot_username'; // Replace with actual bot username
             const dealLink = `https://t.me/${botUsername}?startapp=deal_${deal.id}`;
             document.getElementById('dealLink').textContent = dealLink;
             currentDeal.link = dealLink;
@@ -1217,7 +1354,8 @@
 
         // Load deal (for buyers)
         function loadDeal(dealId) {
-            const savedDeals = localStorage.getItem('playerok_deals');
+            // Load deals from global storage (all users can see)
+            const savedDeals = localStorage.getItem('playerok_deals_global');
             if (savedDeals) {
                 deals = JSON.parse(savedDeals);
             }
@@ -1298,7 +1436,8 @@
             currentDeal.paidAt = new Date().toISOString();
             
             deals[currentDeal.id] = currentDeal;
-            localStorage.setItem('playerok_deals', JSON.stringify(deals));
+            // Save to global storage
+            localStorage.setItem('playerok_deals_global', JSON.stringify(deals));
             
             // Display paid deal
             const card = document.getElementById('paidDealCard');
@@ -1343,6 +1482,272 @@
                 buttons: [{type: 'ok'}]
             });
         };
+
+        // Show My Deals screen
+        function showMyDeals() {
+            const savedDeals = localStorage.getItem('playerok_deals_global');
+            if (savedDeals) {
+                deals = JSON.parse(savedDeals);
+            }
+
+            // Filter deals where user is involved
+            const myDeals = Object.values(deals).filter(deal => 
+                deal.sellerId === userData.userId || deal.buyerId === userData.userId
+            );
+
+            const container = document.getElementById('dealsListContainer');
+            const noDealsMsg = document.getElementById('noDealsMessage');
+
+            if (myDeals.length === 0) {
+                container.innerHTML = '';
+                noDealsMsg.style.display = 'block';
+            } else {
+                noDealsMsg.style.display = 'none';
+                
+                // Sort by creation date (newest first)
+                myDeals.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+                let html = '';
+                myDeals.forEach(deal => {
+                    const isSeller = deal.sellerId === userData.userId;
+                    const role = isSeller ? 'Продавец' : 'Покупатель';
+                    const statusText = getStatusText(deal.status);
+                    const statusClass = getStatusClass(deal.status);
+
+                    html += `
+                        <div class="deal-list-item" onclick="showDealDetail(${deal.id})">
+                            <div class="deal-list-header">
+                                <div class="deal-list-id">Сделка #${deal.id}</div>
+                                <div class="deal-list-amount">${currencyIcons[deal.currency]} ${deal.amount}</div>
+                            </div>
+                            <div class="deal-list-description">${deal.description}</div>
+                            <div class="deal-list-footer">
+                                <div class="deal-list-role">👤 ${role}</div>
+                                <div class="status-badge ${statusClass}">${statusText}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = html;
+            }
+
+            showScreen('myDealsScreen');
+        }
+
+        // Get status text in Russian
+        function getStatusText(status) {
+            const statusMap = {
+                'waiting_buyer': '⏳ Ожидание оплаты',
+                'paid': '💰 Оплачено',
+                'completed': '✅ Завершено',
+                'cancelled': '❌ Отменено'
+            };
+            return statusMap[status] || status;
+        }
+
+        // Get status CSS class
+        function getStatusClass(status) {
+            const classMap = {
+                'waiting_buyer': 'status-waiting',
+                'paid': 'status-paid',
+                'completed': 'status-completed',
+                'cancelled': 'status-error'
+            };
+            return classMap[status] || 'status-waiting';
+        }
+
+        // Show deal detail
+        function showDealDetail(dealId) {
+            const savedDeals = localStorage.getItem('playerok_deals_global');
+            if (savedDeals) {
+                deals = JSON.parse(savedDeals);
+            }
+
+            const deal = deals[dealId];
+            if (!deal) {
+                tg.showAlert('Сделка не найдена');
+                return;
+            }
+
+            const isSeller = deal.sellerId === userData.userId;
+            const isBuyer = deal.buyerId === userData.userId;
+
+            // Display deal details
+            const card = document.getElementById('dealDetailCard');
+            const statusText = getStatusText(deal.status);
+            const statusClass = getStatusClass(deal.status);
+
+            let partnerInfo = '';
+            if (isSeller && deal.buyerId) {
+                partnerInfo = `
+                    <div class="deal-info">
+                        <div class="deal-label">Покупатель:</div>
+                        <div class="deal-value">ID: ${deal.buyerId}</div>
+                    </div>
+                `;
+            } else if (isBuyer) {
+                partnerInfo = `
+                    <div class="deal-info">
+                        <div class="deal-label">Продавец:</div>
+                        <div class="deal-value">@${deal.sellerUsername}</div>
+                    </div>
+                `;
+            }
+
+            card.innerHTML = `
+                <div class="deal-id">Сделка #${deal.id}</div>
+                <div style="margin-bottom: 16px;">
+                    <span class="status-badge ${statusClass}">${statusText}</span>
+                </div>
+                <div class="deal-info">
+                    <div class="deal-label">Ваша роль:</div>
+                    <div class="deal-value">${isSeller ? '👤 Продавец' : '🛒 Покупатель'}</div>
+                </div>
+                ${partnerInfo}
+                <div class="deal-info">
+                    <div class="deal-label">Описание:</div>
+                    <div class="deal-value">${deal.description}</div>
+                </div>
+                <div class="deal-amount">
+                    ${currencyIcons[deal.currency]} ${deal.amount} ${deal.currency}
+                </div>
+                <div class="deal-info">
+                    <div class="deal-label">Дата создания:</div>
+                    <div class="deal-value">${new Date(deal.createdAt).toLocaleString('ru-RU')}</div>
+                </div>
+                ${deal.paidAt ? `
+                    <div class="deal-info">
+                        <div class="deal-label">Дата оплаты:</div>
+                        <div class="deal-value">${new Date(deal.paidAt).toLocaleString('ru-RU')}</div>
+                    </div>
+                ` : ''}
+            `;
+
+            // Show appropriate actions based on role and status
+            const actionsContainer = document.getElementById('dealDetailActions');
+            let actionsHtml = '';
+
+            if (isSeller && deal.status === 'waiting_buyer') {
+                // Seller waiting for buyer - show deal link
+                const botUsername = 'your_bot_username';
+                const dealLink = `https://t.me/${botUsername}?startapp=deal_${deal.id}`;
+                
+                actionsHtml = `
+                    <div class="share-box">
+                        <div style="color: #9CA3AF; margin-bottom: 8px; font-size: 14px;">
+                            🔗 Отправьте эту ссылку покупателю:
+                        </div>
+                        <div class="share-link" id="dealDetailLink">${dealLink}</div>
+                        <button class="btn btn-small" onclick="copyDealDetailLink('${dealLink}')">
+                            📋 Копировать ссылку
+                        </button>
+                    </div>
+                `;
+            } else if (isSeller && deal.status === 'paid') {
+                // Seller needs to confirm transfer
+                actionsHtml = `
+                    <div class="alert alert-success">
+                        <span style="font-size: 24px;">💰</span>
+                        <span>Сделка оплачена покупателем!</span>
+                    </div>
+                    <div style="background: rgba(251, 191, 36, 0.15); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 12px; padding: 16px; margin: 20px 0;">
+                        <p style="color: #FCD34D; margin-bottom: 8px;">
+                            📦 Передайте подарки менеджеру:
+                        </p>
+                        <a href="https://t.me/PlayerOKTransfer" style="color: #60A5FA; text-decoration: none; font-weight: 600;">
+                            @PlayerOKTransfer
+                        </a>
+                    </div>
+                    <button class="btn btn-primary" onclick="confirmTransferFromDetail(${deal.id})">
+                        ✅ Подтвердить передачу
+                    </button>
+                `;
+            } else if (isBuyer && deal.status === 'waiting_buyer') {
+                // Buyer can pay
+                actionsHtml = `
+                    <button class="btn btn-primary" onclick="payDealFromDetail(${deal.id})">
+                        💳 Оплатить сделку
+                    </button>
+                `;
+            } else if (deal.status === 'paid') {
+                actionsHtml = `
+                    <div class="alert alert-success">
+                        <span style="font-size: 24px;">⏳</span>
+                        <span>Ожидаем подтверждения от продавца</span>
+                    </div>
+                `;
+            } else if (deal.status === 'completed') {
+                actionsHtml = `
+                    <div class="alert alert-success">
+                        <span style="font-size: 24px;">✅</span>
+                        <span>Сделка успешно завершена!</span>
+                    </div>
+                `;
+            }
+
+            actionsContainer.innerHTML = actionsHtml;
+            showScreen('dealDetailScreen');
+        }
+
+        // Copy deal link from detail screen
+        function copyDealDetailLink(link) {
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(link).then(() => {
+                    tg.showPopup({
+                        title: '✅ Скопировано',
+                        message: 'Ссылка скопирована в буфер обмена!',
+                        buttons: [{type: 'ok'}]
+                    });
+                });
+            } else {
+                tg.showAlert('Ссылка: ' + link);
+            }
+        }
+
+        // Pay deal from detail screen
+        function payDealFromDetail(dealId) {
+            const deal = deals[dealId];
+            if (!deal) return;
+
+            if (!userData.ancTeam) {
+                tg.showAlert('Действие недоступно. Активируйте режим покупателя командой /ancteam');
+                return;
+            }
+
+            tg.showPopup({
+                title: '💳 Оплата сделки',
+                message: `Оплатить ${deal.amount} ${deal.currency}?`,
+                buttons: [
+                    {id: 'confirm', type: 'default', text: 'Оплатить'},
+                    {type: 'cancel'}
+                ]
+            }, (buttonId) => {
+                if (buttonId === 'confirm') {
+                    deal.status = 'paid';
+                    deal.buyerId = userData.userId;
+                    deal.paidAt = new Date().toISOString();
+                    
+                    deals[deal.id] = deal;
+                    localStorage.setItem('playerok_deals_global', JSON.stringify(deals));
+                    
+                    tg.showPopup({
+                        title: '✅ Оплачено',
+                        message: 'Сделка оплачена! Ожидайте передачи товара.',
+                        buttons: [{type: 'ok'}]
+                    });
+                    
+                    // Refresh detail screen
+                    showDealDetail(dealId);
+                }
+            });
+        }
+
+        // Confirm transfer from detail screen
+        function confirmTransferFromDetail(dealId) {
+            currentDeal = deals[dealId];
+            confirmTransfer();
+        }
 
         // Initialize on load
         init();
