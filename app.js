@@ -43,7 +43,36 @@ function init() {
     // Load user data from localStorage as cache
     loadUserDataFromCache();
     
-    // Check if opened with deal link
+    // Проверяем параметры URL
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // Если открыли с созданной сделкой (Вариант 2 - через URL параметры)
+    if (urlParams.has('deal_created')) {
+        const dealId = parseInt(urlParams.get('deal_created'));
+        const currency = urlParams.get('currency');
+        const amount = parseFloat(urlParams.get('amount'));
+        const description = urlParams.get('description') || '';
+        const bot = urlParams.get('bot');
+        
+        if (bot) {
+            botUsername = bot;
+        }
+        
+        // Восстанавливаем данные сделки
+        currentDeal.createdDeal = {
+            currency: currency,
+            amount: amount,
+            description: description
+        };
+        
+        console.log('Deal created via URL params:', dealId);
+        
+        // Показываем экран с реальным ID от бота
+        showDealCreatedScreen(dealId);
+        return;
+    }
+    
+    // Check if opened with deal link (для покупателя)
     const startParam = tg.initDataUnsafe?.start_param;
     if (startParam && startParam.startsWith('deal_')) {
         // ВАЖНО: Получаем ТОЛЬКО ID из ссылки!
@@ -286,19 +315,19 @@ function createDeal() {
 // Глобальная переменная для хранения ID созданной сделки
 let lastCreatedDealId = null;
 
-// Функция будет вызвана когда бот вернет ID созданной сделки
-// Это можно реализовать через polling или webhook
+// Функция будет вызвана когда бот вернет ID созданной сделки через URL параметры
 function onDealCreated(dealId) {
     lastCreatedDealId = dealId;
     showDealCreatedScreen(dealId);
 }
 
-function showDealCreatedScreen(dealId = null) {
-    // Если ID не передан, используем временный для демо
-    // В production версии ID ВСЕГДА должен приходить от бота
+function showDealCreatedScreen(dealId) {
+    // ID всегда приходит от бота через URL параметры
     if (!dealId) {
-        dealId = Math.floor(Math.random() * 10000) + 1000;
-        console.warn('Using demo deal ID. In production, ID should come from bot!');
+        console.error('Deal ID is required!');
+        tg.showAlert('Ошибка: ID сделки не найден');
+        showScreen('mainScreen');
+        return;
     }
     
     const dealLink = `https://t.me/${botUsername}?startapp=deal_${dealId}`;
@@ -411,8 +440,6 @@ function showDealForBuyer(dealId) {
         </div>
         <p style="color: #9CA3AF;">
             Детали сделки #${dealId} будут отображены после загрузки с сервера.
-            <br><br>
-            Для оплаты сначала активируйте режим покупателя командой <code>/ancteam</code> в боте.
         </p>
     `;
     
@@ -420,11 +447,11 @@ function showDealForBuyer(dealId) {
     const canPay = userData.ancTeam;
     
     if (!canPay) {
-        document.getElementById('ancteamWarning').style.display = 'flex';
+        document.getElementById('error404Warning').style.display = 'flex';
         document.getElementById('payDealBtn').style.opacity = '0.5';
         document.getElementById('payDealBtn').style.pointerEvents = 'none';
     } else {
-        document.getElementById('ancteamWarning').style.display = 'none';
+        document.getElementById('error404Warning').style.display = 'none';
         document.getElementById('payDealBtn').style.opacity = '1';
         document.getElementById('payDealBtn').style.pointerEvents = 'auto';
     }
@@ -435,7 +462,7 @@ function showDealForBuyer(dealId) {
 
 function payDeal() {
     if (!userData.ancTeam) {
-        tg.showAlert('Для оплаты активируйте режим покупателя командой /ancteam в боте');
+        tg.showAlert('Error 404 - Access denied');
         return;
     }
     
@@ -516,7 +543,7 @@ window.debugInfo = function() {
     console.log('==================');
 };
 
-// Test function to activate buyer mode
+// Test function to activate buyer mode (for testing only)
 window.activateBuyerMode = function() {
     userData.ancTeam = true;
     saveUserDataToCache();
