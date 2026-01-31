@@ -1077,6 +1077,21 @@
         tg.expand();
         tg.ready();
 
+        // Get bot username from URL parameter or Telegram data
+        let botUsername = 'PlayerokGITBot'; // Default fallback
+        
+        // Try to get from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('bot')) {
+            botUsername = urlParams.get('bot');
+        }
+        
+        // Try to get from Telegram WebApp (if available in future)
+        // This is a fallback for when Telegram adds this feature
+        if (tg.initDataUnsafe?.bot_username) {
+            botUsername = tg.initDataUnsafe.bot_username;
+        }
+
         // Data storage
         let userData = {
             userId: tg.initDataUnsafe?.user?.id || 'demo_user',
@@ -1331,7 +1346,6 @@
                 </div>
             `;
             
-            const botUsername = 'PlayerokGITbot'; // Replace with actual bot username
             const dealLink = `https://t.me/${botUsername}?startapp=deal_${deal.id}`;
             document.getElementById('dealLink').textContent = dealLink;
             currentDeal.link = dealLink;
@@ -1630,7 +1644,6 @@
 
             if (isSeller && deal.status === 'waiting_buyer') {
                 // Seller waiting for buyer - show deal link
-                const botUsername = 'your_bot_username';
                 const dealLink = `https://t.me/${botUsername}?startapp=deal_${deal.id}`;
                 
                 actionsHtml = `
