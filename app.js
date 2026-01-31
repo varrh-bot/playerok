@@ -126,7 +126,8 @@ function handleBackButton(currentScreen) {
         'dealDetailsScreen': 'currencyScreen',
         'myDealsScreen': 'mainScreen',
         'dealDetailScreen': 'myDealsScreen',
-        'viewDealScreen': 'mainScreen'
+        'viewDealScreen': 'mainScreen',
+        'dealCreatedScreen': 'mainScreen'
     };
     
     const backTo = backMap[currentScreen] || 'mainScreen';
@@ -256,6 +257,13 @@ function createDeal() {
         return;
     }
     
+    // Сохраняем данные сделки для отображения
+    currentDeal.createdDeal = {
+        currency: currentDeal.currency,
+        amount: amount,
+        description: description
+    };
+    
     // Send to bot to create deal in database
     sendToBot({
         action: 'create_deal',
@@ -268,15 +276,101 @@ function createDeal() {
     document.getElementById('dealDescription').value = '';
     document.getElementById('dealAmount').value = '';
     
-    // Show success message
-    tg.showPopup({
-        title: '✅ Сделка создается',
-        message: 'Бот отправит вам КОРОТКУЮ ссылку на сделку в чат. Отправьте эту ссылку покупателю.',
-        buttons: [{type: 'ok'}]
-    }, () => {
-        showScreen('mainScreen');
-        tg.close();
-    });
+    // Показываем экран с ссылкой (эмуляция для демо)
+    // В реальности ID будет получен от бота
+    showDealCreatedScreen();
+}
+
+// ==================== DEAL CREATED SCREEN ====================
+
+// Глобальная переменная для хранения ID созданной сделки
+let lastCreatedDealId = null;
+
+// Функция будет вызвана когда бот вернет ID созданной сделки
+// Это можно реализовать через polling или webhook
+function onDealCreated(dealId) {
+    lastCreatedDealId = dealId;
+    showDealCreatedScreen(dealId);
+}
+
+function showDealCreatedScreen(dealId = null) {
+    // Если ID не передан, используем временный для демо
+    // В production версии ID ВСЕГДА должен приходить от бота
+    if (!dealId) {
+        dealId = Math.floor(Math.random() * 10000) + 1000;
+        console.warn('Using demo deal ID. In production, ID should come from bot!');
+    }
+    
+    const dealLink = `https://t.me/${botUsername}?startapp=deal_${dealId}`;
+    
+    const deal = currentDeal.createdDeal;
+    
+    // Отображаем информацию о сделке
+    document.getElementById('createdDealInfo').innerHTML = `
+        <div class="deal-id">Сделка #${dealId}</div>
+        <div class="deal-row">
+            <span class="deal-label">Валюта:</span>
+            <span class="deal-value">${currencyIcons[deal.currency]} ${deal.currency}</span>
+        </div>
+        <div class="deal-row">
+            <span class="deal-label">Сумма:</span>
+            <span class="deal-value deal-amount">${deal.amount}</span>
+        </div>
+        <div class="deal-row">
+            <span class="deal-label">Описание:</span>
+            <span class="deal-value">${deal.description}</span>
+        </div>
+        <div class="deal-row">
+            <span class="deal-label">Статус:</span>
+            <span class="status status-waiting">⏳ Ожидание оплаты</span>
+        </div>
+    `;
+    
+    // Устанавливаем ссылку в поле ввода
+    document.getElementById('dealLinkInput').value = dealLink;
+    
+    // Показываем экран
+    showScreen('dealCreatedScreen');
+}
+
+function copyDealLink() {
+    const linkInput = document.getElementById('dealLinkInput');
+    
+    // Копируем в буфер обмена
+    linkInput.select();
+    linkInput.setSelectionRange(0, 99999); // For mobile devices
+    
+    try {
+        // Используем современный Clipboard API если доступен
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(linkInput.value).then(() => {
+                tg.showPopup({
+                    title: '✅ Скопировано!',
+                    message: 'Ссылка скопирована в буфер обмена. Отправьте её покупателю.',
+                    buttons: [{type: 'ok'}]
+                });
+            }).catch(() => {
+                // Fallback для старых браузеров
+                document.execCommand('copy');
+                tg.showPopup({
+                    title: '✅ Скопировано!',
+                    message: 'Ссылка скопирована в буфер обмена.',
+                    buttons: [{type: 'ok'}]
+                });
+            });
+        } else {
+            // Fallback для старых браузеров
+            document.execCommand('copy');
+            tg.showPopup({
+                title: '✅ Скопировано!',
+                message: 'Ссылка скопирована в буфер обмена.',
+                buttons: [{type: 'ok'}]
+            });
+        }
+    } catch (err) {
+        console.error('Error copying:', err);
+        tg.showAlert('Ошибка копирования. Попробуйте выделить и скопировать вручную.');
+    }
 }
 
 // ==================== MY DEALS ====================
