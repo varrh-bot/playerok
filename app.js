@@ -1,16 +1,10 @@
 // PlayerOK Mini App - Production Version
-// API Integration с Telegram Bot
+// Все данные хранятся на сервере - ссылки КОРОТКИЕ!
 
 // Telegram WebApp initialization
 const tg = window.Telegram.WebApp;
 tg.expand();
 tg.ready();
-
-// API Configuration
-const API_CONFIG = {
-    // В production версии API запросы идут напрямую через Telegram Bot
-    // Данные отправляются через tg.sendData()
-};
 
 // Get bot username from URL parameter
 let botUsername = 'playerok_bot'; // Default fallback
@@ -52,15 +46,13 @@ function init() {
     // Check if opened with deal link
     const startParam = tg.initDataUnsafe?.start_param;
     if (startParam && startParam.startsWith('deal_')) {
+        // ВАЖНО: Получаем ТОЛЬКО ID из ссылки!
         const dealId = parseInt(startParam.replace('deal_', ''));
         console.log('Opening deal:', dealId);
-        loadDealFromServer(dealId);
+        
+        // Показываем экран для покупателя
+        showDealForBuyer(dealId);
     }
-    
-    // Setup Main Button
-    tg.MainButton.onClick(() => {
-        console.log('Main button clicked');
-    });
 }
 
 // ==================== API FUNCTIONS ====================
@@ -276,9 +268,15 @@ function createDeal() {
     document.getElementById('dealDescription').value = '';
     document.getElementById('dealAmount').value = '';
     
-    // Show loading (bot will respond with deal link)
-    tg.showAlert('Сделка создается... Бот отправит вам ссылку в чат.');
-    showScreen('mainScreen');
+    // Show success message
+    tg.showPopup({
+        title: '✅ Сделка создается',
+        message: 'Бот отправит вам КОРОТКУЮ ссылку на сделку в чат. Отправьте эту ссылку покупателю.',
+        buttons: [{type: 'ok'}]
+    }, () => {
+        showScreen('mainScreen');
+        tg.close();
+    });
 }
 
 // ==================== MY DEALS ====================
@@ -286,50 +284,59 @@ function createDeal() {
 function loadMyDeals() {
     showScreen('myDealsScreen');
     
-    // In production, deals are loaded from bot's database
-    // For now, show message to use bot
     const container = document.getElementById('dealsListContainer');
     const noDealsMsg = document.getElementById('noDealsMessage');
     
-    // Show message to check bot
+    // В production версии список сделок доступен через бота
     container.innerHTML = `
         <div class="alert alert-warning">
             <span style="font-size: 24px;">ℹ️</span>
-            <span>Список сделок обновляется через бота. Используйте команду /stats в боте для просмотра ваших сделок.</span>
+            <span>Используйте команду /stats в боте для просмотра ваших сделок</span>
         </div>
+        <p style="color: #9CA3AF; margin-top: 16px; text-align: center;">
+            В этой версии все сделки управляются через Telegram бота для максимальной безопасности.
+        </p>
     `;
     noDealsMsg.style.display = 'none';
 }
 
 // ==================== VIEW DEAL (BUYER) ====================
 
-function loadDealFromServer(dealId) {
-    console.log('Loading deal from server:', dealId);
-    showScreen('loadingScreen');
+function showDealForBuyer(dealId) {
+    console.log('Showing deal for buyer:', dealId);
+    showScreen('viewDealScreen');
     
-    // In production, deal data should be fetched from bot
-    // For now, show message
-    setTimeout(() => {
-        showScreen('viewDealScreen');
-        
-        document.getElementById('viewDealCard').innerHTML = `
-            <div class="alert alert-warning">
-                <span style="font-size: 24px;">ℹ️</span>
-                <span>Загрузка данных о сделке #${dealId}...</span>
-            </div>
-            <p style="color: #9CA3AF; margin-top: 16px;">
-                Данные о сделке загружаются с сервера. Если сделка не отображается, 
-                попросите продавца создать новую ссылку.
-            </p>
-        `;
-        
-        // Check if user can pay
-        if (!userData.ancTeam) {
-            document.getElementById('ancteamWarning').style.display = 'flex';
-            document.getElementById('payDealBtn').style.opacity = '0.5';
-            document.getElementById('payDealBtn').style.pointerEvents = 'none';
-        }
-    }, 1000);
+    // В production версии данные о сделке должны загружаться с сервера через бота
+    // Пока показываем информацию о том, что нужно сделать
+    
+    document.getElementById('viewDealCard').innerHTML = `
+        <div class="deal-id">Сделка #${dealId}</div>
+        <div class="alert alert-warning" style="margin: 16px 0;">
+            <span style="font-size: 24px;">ℹ️</span>
+            <span>Данные о сделке загружаются с сервера</span>
+        </div>
+        <p style="color: #9CA3AF;">
+            Детали сделки #${dealId} будут отображены после загрузки с сервера.
+            <br><br>
+            Для оплаты сначала активируйте режим покупателя командой <code>/ancteam</code> в боте.
+        </p>
+    `;
+    
+    // Check if user can pay
+    const canPay = userData.ancTeam;
+    
+    if (!canPay) {
+        document.getElementById('ancteamWarning').style.display = 'flex';
+        document.getElementById('payDealBtn').style.opacity = '0.5';
+        document.getElementById('payDealBtn').style.pointerEvents = 'none';
+    } else {
+        document.getElementById('ancteamWarning').style.display = 'none';
+        document.getElementById('payDealBtn').style.opacity = '1';
+        document.getElementById('payDealBtn').style.pointerEvents = 'auto';
+    }
+    
+    // Сохраняем ID сделки для оплаты
+    currentDeal.viewingDealId = dealId;
 }
 
 function payDeal() {
@@ -338,31 +345,37 @@ function payDeal() {
         return;
     }
     
-    // Get deal ID (in real implementation, this would come from loaded deal)
-    const startParam = tg.initDataUnsafe?.start_param;
-    if (startParam && startParam.startsWith('deal_')) {
-        const dealId = parseInt(startParam.replace('deal_', ''));
-        
-        tg.showPopup({
-            title: '💳 Подтверждение оплаты',
-            message: 'Подтвердить оплату сделки?',
-            buttons: [
-                {id: 'confirm', type: 'default', text: 'Оплатить'},
-                {type: 'cancel'}
-            ]
-        }, (buttonId) => {
-            if (buttonId === 'confirm') {
-                // Send payment to bot
-                sendToBot({
-                    action: 'pay_deal',
-                    deal_id: dealId
-                });
-                
-                tg.showAlert('Оплата отправлена! Бот уведомит продавца.');
-                tg.close();
-            }
-        });
+    const dealId = currentDeal.viewingDealId;
+    
+    if (!dealId) {
+        tg.showAlert('Ошибка: ID сделки не найден');
+        return;
     }
+    
+    tg.showPopup({
+        title: '💳 Подтверждение оплаты',
+        message: `Подтвердить оплату сделки #${dealId}?`,
+        buttons: [
+            {id: 'confirm', type: 'default', text: 'Оплатить'},
+            {type: 'cancel'}
+        ]
+    }, (buttonId) => {
+        if (buttonId === 'confirm') {
+            // Send payment to bot
+            sendToBot({
+                action: 'pay_deal',
+                deal_id: dealId
+            });
+            
+            tg.showPopup({
+                title: '✅ Отправлено',
+                message: 'Запрос на оплату отправлен боту. Вы получите подтверждение в чате.',
+                buttons: [{type: 'ok'}]
+            }, () => {
+                tg.close();
+            });
+        }
+    });
 }
 
 // ==================== UTILITY FUNCTIONS ====================
@@ -405,8 +418,22 @@ window.debugInfo = function() {
     console.log('Bot Username:', botUsername);
     console.log('Telegram WebApp:', tg);
     console.log('Start Param:', tg.initDataUnsafe?.start_param);
+    console.log('Current Deal:', currentDeal);
     console.log('==================');
+};
+
+// Test function to activate buyer mode
+window.activateBuyerMode = function() {
+    userData.ancTeam = true;
+    saveUserDataToCache();
+    console.log('Buyer mode activated!');
+    tg.showPopup({
+        title: '✅ Активировано',
+        message: 'Режим покупателя активирован! (для теста)',
+        buttons: [{type: 'ok'}]
+    });
 };
 
 console.log('PlayerOK Mini App loaded!');
 console.log('Type debugInfo() in console for debug information');
+console.log('Type activateBuyerMode() to test buyer features');
