@@ -305,9 +305,9 @@ function createDeal() {
     document.getElementById('dealDescription').value = '';
     document.getElementById('dealAmount').value = '';
     
-    // Показываем экран с ссылкой (эмуляция для демо)
-    // В реальности ID будет получен от бота
-    showDealCreatedScreen();
+    // После отправки данных бот создаст сделку и отправит кнопку для получения ссылки
+    // Приложение закроется, а при нажатии на кнопку откроется с параметрами deal_created
+    tg.close();
 }
 
 // ==================== DEAL CREATED SCREEN ====================
