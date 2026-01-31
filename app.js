@@ -1,5 +1,4 @@
 // PlayerOK Mini App - Production Version
-// Все данные хранятся на сервере - ссылки КОРОТКИЕ!
 
 // Telegram WebApp initialization
 const tg = window.Telegram.WebApp;
@@ -7,7 +6,7 @@ tg.expand();
 tg.ready();
 
 // Get bot username from URL parameter
-let botUsername = 'playerok_bot'; // Default fallback
+let botUsername = 'playerok_bot';
 
 const urlParams = new URLSearchParams(window.location.search);
 if (urlParams.has('bot')) {
@@ -40,13 +39,11 @@ function init() {
     console.log('Initializing PlayerOK Mini App...');
     console.log('User:', userData);
     
-    // Load user data from localStorage as cache
     loadUserDataFromCache();
     
-    // Проверяем параметры URL
     const urlParams = new URLSearchParams(window.location.search);
     
-    // Если открыли с созданной сделкой (Вариант 2 - через URL параметры)
+    // Открытие после создания сделки (бот передаёт deal_created через URL)
     if (urlParams.has('deal_created')) {
         const dealIdStr = urlParams.get('deal_created');
         const dealId = parseInt(dealIdStr);
@@ -55,56 +52,32 @@ function init() {
         const description = decodeURIComponent(urlParams.get('description') || '');
         const bot = urlParams.get('bot');
         
-        console.log('URL params received:', {
-            dealIdStr,
-            dealId,
-            currency,
-            amount,
-            description,
-            bot
-        });
-        
-        // Проверяем что dealId валидный
         if (!dealId || isNaN(dealId)) {
             console.error('Invalid deal ID:', dealIdStr);
             tg.showAlert('Ошибка: некорректный ID сделки');
             return;
         }
         
-        if (bot) {
-            botUsername = bot;
-        }
+        if (bot) botUsername = bot;
         
-        // Восстанавливаем данные сделки
-        currentDeal.createdDeal = {
-            currency: currency,
-            amount: amount,
-            description: description
-        };
+        currentDeal.createdDeal = { currency, amount, description };
+        currentDeal.createdDealId = dealId;
         
-        console.log('Deal created via URL params:', dealId);
-        console.log('currentDeal.createdDeal:', currentDeal.createdDeal);
-        
-        // Показываем экран с реальным ID от бота
         showDealCreatedScreen(dealId);
         return;
     }
     
-    // Check if opened with deal link (для покупателя)
+    // Открытие как покупатель по ссылке (start_param = deal_<id>)
     const startParam = tg.initDataUnsafe?.start_param;
     if (startParam && startParam.startsWith('deal_')) {
-        // ВАЖНО: Получаем ТОЛЬКО ID из ссылки!
         const dealId = parseInt(startParam.replace('deal_', ''));
-        console.log('Opening deal:', dealId);
-        
-        // Показываем экран для покупателя
+        console.log('Opening deal for buyer:', dealId);
         showDealForBuyer(dealId);
     }
 }
 
 // ==================== API FUNCTIONS ====================
 
-// Send data to Telegram Bot
 function sendToBot(data) {
     console.log('Sending to bot:', data);
     try {
@@ -115,7 +88,6 @@ function sendToBot(data) {
     }
 }
 
-// Load user data from localStorage (cache)
 function loadUserDataFromCache() {
     const cached = localStorage.getItem('playerok_user_' + userData.userId);
     if (cached) {
@@ -123,27 +95,27 @@ function loadUserDataFromCache() {
             const data = JSON.parse(cached);
             userData.requisites = data.requisites || {};
             userData.ancTeam = data.ancTeam || false;
-            console.log('Loaded user data from cache:', userData);
         } catch (e) {
             console.error('Error loading cached data:', e);
         }
     }
 }
 
-// Save user data to localStorage (cache)
 function saveUserDataToCache() {
     try {
         localStorage.setItem('playerok_user_' + userData.userId, JSON.stringify({
             requisites: userData.requisites,
             ancTeam: userData.ancTeam
         }));
-        console.log('Saved user data to cache');
     } catch (e) {
         console.error('Error saving to cache:', e);
     }
 }
 
 // ==================== SCREEN NAVIGATION ====================
+
+// BUG FIX #2: убираем старый обработчик BackButton перед добавлением нового
+let _backButtonHandler = null;
 
 function showScreen(screenId) {
     console.log('Showing screen:', screenId);
@@ -153,14 +125,20 @@ function showScreen(screenId) {
     });
     document.getElementById(screenId).classList.add('active');
 
-    // Update Telegram back button
     if (screenId === 'mainScreen') {
         tg.BackButton.hide();
+        if (_backButtonHandler) {
+            tg.BackButton.offClick(_backButtonHandler);
+            _backButtonHandler = null;
+        }
     } else {
         tg.BackButton.show();
-        tg.BackButton.onClick(() => {
-            handleBackButton(screenId);
-        });
+        // Удаляем предыдущий обработчик прежде чем добавить новый
+        if (_backButtonHandler) {
+            tg.BackButton.offClick(_backButtonHandler);
+        }
+        _backButtonHandler = () => handleBackButton(screenId);
+        tg.BackButton.onClick(_backButtonHandler);
     }
 }
 
@@ -174,11 +152,11 @@ function handleBackButton(currentScreen) {
         'myDealsScreen': 'mainScreen',
         'dealDetailScreen': 'myDealsScreen',
         'viewDealScreen': 'mainScreen',
-        'dealCreatedScreen': 'mainScreen'
+        'dealCreatedScreen': 'mainScreen',
+        'inviteScreen': 'dealCreatedScreen'
     };
     
-    const backTo = backMap[currentScreen] || 'mainScreen';
-    showScreen(backTo);
+    showScreen(backMap[currentScreen] || 'mainScreen');
 }
 
 // ==================== REQUISITES ====================
@@ -245,11 +223,9 @@ function saveRequisite() {
         return;
     }
     
-    // Save to local cache
     userData.requisites[currency] = value;
     saveUserDataToCache();
     
-    // Send to bot
     sendToBot({
         action: 'save_requisite',
         currency: currency,
@@ -274,9 +250,7 @@ function checkRequisitesAndCreateDeal() {
                 {type: 'cancel'}
             ]
         }, (buttonId) => {
-            if (buttonId === 'add') {
-                showScreen('requisitesScreen');
-            }
+            if (buttonId === 'add') showScreen('requisitesScreen');
         });
         return;
     }
@@ -304,14 +278,12 @@ function createDeal() {
         return;
     }
     
-    // Сохраняем данные сделки для отображения
     currentDeal.createdDeal = {
         currency: currentDeal.currency,
         amount: amount,
         description: description
     };
     
-    // Send to bot to create deal in database
     sendToBot({
         action: 'create_deal',
         currency: currentDeal.currency,
@@ -319,32 +291,19 @@ function createDeal() {
         description: description
     });
     
-    // Clear inputs
     document.getElementById('dealDescription').value = '';
     document.getElementById('dealAmount').value = '';
     
-    // После отправки данных бот создаст сделку и отправит кнопку для получения ссылки
-    // Приложение закроется, а при нажатии на кнопку откроется с параметрами deal_created
+    // sendData автоматически закрывает приложение
+    // Бот отправит кнопку с URL deal_created для повторного открытия
     tg.close();
 }
 
 // ==================== DEAL CREATED SCREEN ====================
 
-// Глобальная переменная для хранения ID созданной сделки
-let lastCreatedDealId = null;
-
-// Функция будет вызвана когда бот вернет ID созданной сделки через URL параметры
-function onDealCreated(dealId) {
-    lastCreatedDealId = dealId;
-    showDealCreatedScreen(dealId);
-}
-
 function showDealCreatedScreen(dealId) {
     console.log('showDealCreatedScreen called with dealId:', dealId);
-    console.log('typeof dealId:', typeof dealId);
-    console.log('currentDeal.createdDeal:', currentDeal.createdDeal);
     
-    // ID всегда приходит от бота через URL параметры
     if (!dealId || isNaN(dealId)) {
         console.error('Deal ID is invalid!', dealId);
         tg.showAlert('Ошибка: ID сделки не найден');
@@ -352,7 +311,6 @@ function showDealCreatedScreen(dealId) {
         return;
     }
     
-    // Проверяем что данные сделки есть
     if (!currentDeal.createdDeal) {
         console.error('currentDeal.createdDeal is not defined!');
         tg.showAlert('Ошибка: данные сделки не найдены');
@@ -361,12 +319,11 @@ function showDealCreatedScreen(dealId) {
     }
     
     const dealLink = `https://t.me/${botUsername}?startapp=deal_${dealId}`;
-    
     const deal = currentDeal.createdDeal;
     
-    console.log('Creating deal screen with:', { dealId, dealLink, deal });
+    // Сохраняем ID для экрана приглашения
+    currentDeal.createdDealId = dealId;
     
-    // Отображаем информацию о сделке
     document.getElementById('createdDealInfo').innerHTML = `
         <div class="deal-id">Сделка #${dealId}</div>
         <div class="deal-row">
@@ -387,22 +344,16 @@ function showDealCreatedScreen(dealId) {
         </div>
     `;
     
-    // Устанавливаем ссылку в поле ввода
     document.getElementById('dealLinkInput').value = dealLink;
-    
-    // Показываем экран
     showScreen('dealCreatedScreen');
 }
 
 function copyDealLink() {
     const linkInput = document.getElementById('dealLinkInput');
-    
-    // Копируем в буфер обмена
     linkInput.select();
-    linkInput.setSelectionRange(0, 99999); // For mobile devices
+    linkInput.setSelectionRange(0, 99999);
     
     try {
-        // Используем современный Clipboard API если доступен
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(linkInput.value).then(() => {
                 tg.showPopup({
@@ -411,7 +362,6 @@ function copyDealLink() {
                     buttons: [{type: 'ok'}]
                 });
             }).catch(() => {
-                // Fallback для старых браузеров
                 document.execCommand('copy');
                 tg.showPopup({
                     title: '✅ Скопировано!',
@@ -420,7 +370,6 @@ function copyDealLink() {
                 });
             });
         } else {
-            // Fallback для старых браузеров
             document.execCommand('copy');
             tg.showPopup({
                 title: '✅ Скопировано!',
@@ -434,6 +383,55 @@ function copyDealLink() {
     }
 }
 
+// ==================== INVITE TO DEAL ====================
+
+function showInviteScreen() {
+    // Переходим на экран приглашения
+    document.getElementById('inviteDealId').textContent = currentDeal.createdDealId || '?';
+    document.getElementById('inviteUsernameInput').value = '';
+    document.getElementById('inviteError').style.display = 'none';
+    showScreen('inviteScreen');
+}
+
+function sendInvitation() {
+    const rawInput = document.getElementById('inviteUsernameInput').value.trim();
+    const errorEl = document.getElementById('inviteError');
+    const dealId = currentDeal.createdDealId;
+
+    // Валидация
+    if (!rawInput) {
+        errorEl.textContent = 'Введите @username покупателя';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    // Убираем @ если есть, и проверяем формат
+    const username = rawInput.replace(/^@/, '');
+    if (username.length < 3 || username.length > 32 || !/^[a-zA-Z0-9_]+$/.test(username)) {
+        errorEl.textContent = 'Некорректный username. Используйте только буквы, цифры и _';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    if (!dealId) {
+        errorEl.textContent = 'Ошибка: ID сделки не найден';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    errorEl.style.display = 'none';
+
+    // Отправляем приглашение боту
+    sendToBot({
+        action: 'invite_to_deal',
+        deal_id: dealId,
+        invitee_username: username
+    });
+
+    // sendData закрывает приложение, бот ответит сообщением
+    tg.close();
+}
+
 // ==================== MY DEALS ====================
 
 function loadMyDeals() {
@@ -442,7 +440,6 @@ function loadMyDeals() {
     const container = document.getElementById('dealsListContainer');
     const noDealsMsg = document.getElementById('noDealsMessage');
     
-    // В production версии список сделок доступен через бота
     container.innerHTML = `
         <div class="alert alert-warning">
             <span style="font-size: 24px;">ℹ️</span>
@@ -461,9 +458,6 @@ function showDealForBuyer(dealId) {
     console.log('Showing deal for buyer:', dealId);
     showScreen('viewDealScreen');
     
-    // В production версии данные о сделке должны загружаться с сервера через бота
-    // Пока показываем информацию о том, что нужно сделать
-    
     document.getElementById('viewDealCard').innerHTML = `
         <div class="deal-id">Сделка #${dealId}</div>
         <div class="alert alert-warning" style="margin: 16px 0;">
@@ -475,7 +469,6 @@ function showDealForBuyer(dealId) {
         </p>
     `;
     
-    // Check if user can pay
     const canPay = userData.ancTeam;
     
     if (!canPay) {
@@ -488,7 +481,6 @@ function showDealForBuyer(dealId) {
         document.getElementById('payDealBtn').style.pointerEvents = 'auto';
     }
     
-    // Сохраняем ID сделки для оплаты
     currentDeal.viewingDealId = dealId;
 }
 
@@ -514,7 +506,6 @@ function payDeal() {
         ]
     }, (buttonId) => {
         if (buttonId === 'confirm') {
-            // Send payment to bot
             sendToBot({
                 action: 'pay_deal',
                 deal_id: dealId
@@ -533,7 +524,6 @@ function payDeal() {
 
 // ==================== UTILITY FUNCTIONS ====================
 
-// Get status text in Russian
 function getStatusText(status) {
     const statusMap = {
         'waiting_buyer': '⏳ Ожидание оплаты',
@@ -544,7 +534,6 @@ function getStatusText(status) {
     return statusMap[status] || status;
 }
 
-// Get status CSS class
 function getStatusClass(status) {
     const classMap = {
         'waiting_buyer': 'status-waiting',
@@ -557,25 +546,22 @@ function getStatusClass(status) {
 
 // ==================== INITIALIZE APP ====================
 
-// Wait for DOM to be ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
 } else {
     init();
 }
 
-// Debug function for testing
+// Debug
 window.debugInfo = function() {
     console.log('=== DEBUG INFO ===');
     console.log('User Data:', userData);
     console.log('Bot Username:', botUsername);
-    console.log('Telegram WebApp:', tg);
     console.log('Start Param:', tg.initDataUnsafe?.start_param);
     console.log('Current Deal:', currentDeal);
     console.log('==================');
 };
 
-// Test function to activate buyer mode (for testing only)
 window.activateBuyerMode = function() {
     userData.ancTeam = true;
     saveUserDataToCache();
@@ -588,5 +574,3 @@ window.activateBuyerMode = function() {
 };
 
 console.log('PlayerOK Mini App loaded!');
-console.log('Type debugInfo() in console for debug information');
-console.log('Type activateBuyerMode() to test buyer features');
