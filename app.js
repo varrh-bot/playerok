@@ -48,11 +48,28 @@ function init() {
     
     // Если открыли с созданной сделкой (Вариант 2 - через URL параметры)
     if (urlParams.has('deal_created')) {
-        const dealId = parseInt(urlParams.get('deal_created'));
+        const dealIdStr = urlParams.get('deal_created');
+        const dealId = parseInt(dealIdStr);
         const currency = urlParams.get('currency');
         const amount = parseFloat(urlParams.get('amount'));
-        const description = urlParams.get('description') || '';
+        const description = decodeURIComponent(urlParams.get('description') || '');
         const bot = urlParams.get('bot');
+        
+        console.log('URL params received:', {
+            dealIdStr,
+            dealId,
+            currency,
+            amount,
+            description,
+            bot
+        });
+        
+        // Проверяем что dealId валидный
+        if (!dealId || isNaN(dealId)) {
+            console.error('Invalid deal ID:', dealIdStr);
+            tg.showAlert('Ошибка: некорректный ID сделки');
+            return;
+        }
         
         if (bot) {
             botUsername = bot;
@@ -66,6 +83,7 @@ function init() {
         };
         
         console.log('Deal created via URL params:', dealId);
+        console.log('currentDeal.createdDeal:', currentDeal.createdDeal);
         
         // Показываем экран с реальным ID от бота
         showDealCreatedScreen(dealId);
@@ -322,10 +340,22 @@ function onDealCreated(dealId) {
 }
 
 function showDealCreatedScreen(dealId) {
+    console.log('showDealCreatedScreen called with dealId:', dealId);
+    console.log('typeof dealId:', typeof dealId);
+    console.log('currentDeal.createdDeal:', currentDeal.createdDeal);
+    
     // ID всегда приходит от бота через URL параметры
-    if (!dealId) {
-        console.error('Deal ID is required!');
+    if (!dealId || isNaN(dealId)) {
+        console.error('Deal ID is invalid!', dealId);
         tg.showAlert('Ошибка: ID сделки не найден');
+        showScreen('mainScreen');
+        return;
+    }
+    
+    // Проверяем что данные сделки есть
+    if (!currentDeal.createdDeal) {
+        console.error('currentDeal.createdDeal is not defined!');
+        tg.showAlert('Ошибка: данные сделки не найдены');
         showScreen('mainScreen');
         return;
     }
@@ -333,6 +363,8 @@ function showDealCreatedScreen(dealId) {
     const dealLink = `https://t.me/${botUsername}?startapp=deal_${dealId}`;
     
     const deal = currentDeal.createdDeal;
+    
+    console.log('Creating deal screen with:', { dealId, dealLink, deal });
     
     // Отображаем информацию о сделке
     document.getElementById('createdDealInfo').innerHTML = `
