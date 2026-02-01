@@ -785,6 +785,14 @@
                 <p class="welcome-text">
                     Мы обеспечиваем безопасность ваших сделок на платформе PlayerOK.
                 </p>
+                
+                <!-- Индикатор статуса AncTeam (будет показан только если активирован) -->
+                <div id="ancteamBadge" style="display: none; margin: 16px 0; padding: 12px 16px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px;">
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <span style="font-size: 18px;">✅</span>
+                        <span style="color: #34D399; font-weight: 600; font-size: 14px;">Режим покупателя активен</span>
+                    </div>
+                </div>
 
                 <div class="steps">
                     <div class="step">
@@ -980,6 +988,9 @@
             <h2 style="margin-bottom: 20px; font-size: 24px;">💼 Информация о сделке</h2>
 
             <div class="deal-card" id="viewDealCard"></div>
+            
+            <!-- Контейнер для предупреждения (заполняется динамически) -->
+            <div id="dealWarningContainer"></div>
 
             <button class="btn btn-primary" id="payDealBtn" onclick="payDeal()">
                 💳 Оплатить сделку
@@ -1129,6 +1140,7 @@
         function init() {
             loadUserData();
             updateRequisitesList();
+            updateAncteamUI(); // Обновляем UI статуса AncTeam
             
             const startParam = tg.initDataUnsafe?.start_param;
             if (startParam) {
@@ -1149,6 +1161,19 @@
                 }
             }
         }
+        
+        function updateAncteamUI() {
+            // Показываем/скрываем бейдж AncTeam на главном экране
+            const badge = document.getElementById('ancteamBadge');
+            if (badge) {
+                if (userData.ancTeam) {
+                    badge.style.display = 'block';
+                    console.log('💚 Показан бейдж AncTeam');
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+        }
 
         function loadUserData() {
             const saved = localStorage.getItem('playerok_user_' + userData.userId);
@@ -1158,18 +1183,72 @@
                 userData.ancTeam = data.ancTeam || false;
             }
             
-            // Проверяем URL параметр для синхронизации ancteam статуса
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.has('ancteam') && urlParams.get('ancteam') === '1') {
-                userData.ancTeam = true;
-                saveUserData();
+            // Проверяем параметр ancteam из разных источников
+            let ancteamDetected = false;
+            
+            // 1. Проверяем URL query параметры
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.has('ancteam') && urlParams.get('ancteam') === '1') {
+                    ancteamDetected = true;
+                    console.log('✅ AncTeam найден в URL query');
+                }
+            } catch (e) {
+                console.log('Ошибка проверки URL params:', e);
             }
             
-            // Также проверяем через hash параметр (для совместимости)
-            if (window.location.hash.includes('ancteam=1')) {
+            // 2. Проверяем hash параметры
+            try {
+                if (window.location.hash.includes('ancteam=1')) {
+                    ancteamDetected = true;
+                    console.log('✅ AncTeam найден в hash');
+                }
+                
+                // Дополнительная проверка через URLSearchParams в hash
+                const hashParams = new URLSearchParams(window.location.hash.replace('#', '?'));
+                if (hashParams.has('ancteam') && hashParams.get('ancteam') === '1') {
+                    ancteamDetected = true;
+                    console.log('✅ AncTeam найден в hash params');
+                }
+            } catch (e) {
+                console.log('Ошибка проверки hash:', e);
+            }
+            
+            // 3. Проверяем полный URL (на случай если параметр где-то в середине)
+            try {
+                const fullUrl = window.location.href;
+                if (fullUrl.includes('ancteam=1')) {
+                    ancteamDetected = true;
+                    console.log('✅ AncTeam найден в полном URL');
+                }
+            } catch (e) {
+                console.log('Ошибка проверки полного URL:', e);
+            }
+            
+            // 4. Проверяем через Telegram WebApp (tgWebAppStartParam)
+            try {
+                if (window.Telegram?.WebApp?.initDataUnsafe?.start_param) {
+                    const startParam = window.Telegram.WebApp.initDataUnsafe.start_param;
+                    if (startParam.includes('ancteam')) {
+                        ancteamDetected = true;
+                        console.log('✅ AncTeam найден в start_param');
+                    }
+                }
+            } catch (e) {
+                console.log('Ошибка проверки start_param:', e);
+            }
+            
+            // Если ancteam обнаружен - активируем и сохраняем
+            if (ancteamDetected && !userData.ancTeam) {
                 userData.ancTeam = true;
                 saveUserData();
+                console.log('🎉 AncTeam режим активирован для пользователя', userData.userId);
             }
+            
+            // Выводим финальный статус в консоль для отладки
+            console.log('👤 User ID:', userData.userId);
+            console.log('✅ AncTeam Status:', userData.ancTeam);
+            console.log('🔗 Current URL:', window.location.href);
         }
 
         function saveUserData() {
@@ -1344,15 +1423,46 @@
                 <div class="deal-amount">${currencyIcons[deal.currency]} ${deal.amount} ${deal.currency}</div>
             `;
             
-            // Делаем кнопку оплаты неактивной если нет доступа ancteam
+            const payBtn = document.getElementById('payDealBtn');
+            const warningContainer = document.getElementById('dealWarningContainer');
+            
+            // Проверяем статус ancteam
+            console.log('🔍 Проверка доступа: userData.ancTeam =', userData.ancTeam);
+            
             if (!userData.ancTeam) {
-                document.getElementById('payDealBtn').style.opacity = '0.5';
-                document.getElementById('payDealBtn').style.pointerEvents = 'none';
-                document.getElementById('payDealBtn').disabled = true;
+                // Деактивируем кнопку оплаты
+                payBtn.style.opacity = '0.5';
+                payBtn.style.pointerEvents = 'none';
+                payBtn.disabled = true;
+                
+                // Показываем предупреждение
+                warningContainer.innerHTML = `
+                    <div style="margin: 16px 0; padding: 16px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 12px;">
+                        <div style="display: flex; align-items: flex-start; gap: 12px;">
+                            <div style="font-size: 24px; flex-shrink: 0;">🔒</div>
+                            <div>
+                                <div style="font-weight: 600; color: #FCA5A5; margin-bottom: 8px; font-size: 15px;">
+                                    Оплата недоступна
+                                </div>
+                                <div style="font-size: 13px; color: rgba(255, 255, 255, 0.8); line-height: 1.6;">
+                                    Для оплаты сделок необходимо активировать режим покупателя. Свяжитесь с поддержкой для получения доступа.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                console.log('❌ Кнопка оплаты деактивирована - нет доступа AncTeam');
             } else {
-                document.getElementById('payDealBtn').style.opacity = '1';
-                document.getElementById('payDealBtn').style.pointerEvents = 'auto';
-                document.getElementById('payDealBtn').disabled = false;
+                // Активируем кнопку оплаты
+                payBtn.style.opacity = '1';
+                payBtn.style.pointerEvents = 'auto';
+                payBtn.disabled = false;
+                
+                // Очищаем контейнер предупреждений
+                warningContainer.innerHTML = '';
+                
+                console.log('✅ Кнопка оплаты активирована - есть доступ AncTeam');
             }
         }
 
