@@ -1376,6 +1376,19 @@
             
             deals[deal.id] = deal;
             localStorage.setItem('playerok_deals_global', JSON.stringify(deals));
+            
+            // ✅ ИСПРАВЛЕНИЕ: Отправляем данные о сделке в бот
+            try {
+                const dealData = JSON.stringify({
+                    action: 'deal_created',
+                    deal_data: deal
+                });
+                console.log('📤 Отправка данных сделки в бот:', dealData);
+                tg.sendData(dealData);
+            } catch (error) {
+                console.error('❌ Ошибка отправки данных:', error);
+            }
+            
             displayCreatedDeal(deal);
             showScreen('dealCreatedScreen');
         }
@@ -1483,6 +1496,27 @@
             localStorage.setItem('playerok_deals_global', JSON.stringify(deals));
             
             console.log('✅ Оплата сделки #' + currentDeal.id);
+            
+            // ✅ ИСПРАВЛЕНИЕ: Отправляем данные об оплате в бот
+            try {
+                const paymentData = JSON.stringify({
+                    action: 'deal_paid',
+                    deal_id: currentDeal.id,
+                    deal_info: {
+                        seller_id: currentDeal.sellerId,
+                        seller_username: currentDeal.sellerUsername,
+                        buyer_id: userData.userId,
+                        buyer_username: userData.username,
+                        currency: currentDeal.currency,
+                        amount: currentDeal.amount,
+                        description: currentDeal.description
+                    }
+                });
+                console.log('📤 Отправка данных об оплате в бот:', paymentData);
+                tg.sendData(paymentData);
+            } catch (error) {
+                console.error('❌ Ошибка отправки данных об оплате:', error);
+            }
             
             const card = document.getElementById('paidDealCard');
             card.innerHTML = `
