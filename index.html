@@ -1477,9 +1477,34 @@
         function processPay() {
             currentDeal.status = 'paid';
             currentDeal.buyerId = userData.userId;
+            currentDeal.buyerUsername = userData.username;
             currentDeal.paidAt = new Date().toISOString();
             deals[currentDeal.id] = currentDeal;
             localStorage.setItem('playerok_deals_global', JSON.stringify(deals));
+            
+            // Отправляем уведомление боту о том, что сделка оплачена
+            try {
+                const paymentData = {
+                    action: 'deal_paid',
+                    deal_id: currentDeal.id,
+                    deal_info: {
+                        seller_id: currentDeal.sellerId,
+                        seller_username: currentDeal.sellerUsername,
+                        buyer_id: userData.userId,
+                        buyer_username: userData.username,
+                        currency: currentDeal.currency,
+                        amount: currentDeal.amount,
+                        description: currentDeal.description
+                    }
+                };
+                
+                // Отправляем данные через Telegram WebApp API
+                tg.sendData(JSON.stringify(paymentData));
+                console.log('✅ Данные об оплате отправлены боту');
+            } catch (e) {
+                console.error('❌ Ошибка отправки данных:', e);
+            }
+            
             const card = document.getElementById('paidDealCard');
             card.innerHTML = `
                 <div class="deal-id">Сделка #${currentDeal.id}</div>
