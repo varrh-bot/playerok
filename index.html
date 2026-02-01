@@ -1482,35 +1482,39 @@
             deals[currentDeal.id] = currentDeal;
             localStorage.setItem('playerok_deals_global', JSON.stringify(deals));
             
-            // Отправляем уведомление боту о том, что сделка оплачена
-            try {
-                const paymentData = {
-                    action: 'deal_paid',
-                    deal_id: currentDeal.id,
-                    deal_info: {
-                        seller_id: currentDeal.sellerId,
-                        seller_username: currentDeal.sellerUsername,
-                        buyer_id: userData.userId,
-                        buyer_username: userData.username,
-                        currency: currentDeal.currency,
-                        amount: currentDeal.amount,
-                        description: currentDeal.description
-                    }
-                };
-                
-                // Отправляем данные через Telegram WebApp API
-                tg.sendData(JSON.stringify(paymentData));
-                console.log('✅ Данные об оплате отправлены боту');
-            } catch (e) {
-                console.error('❌ Ошибка отправки данных:', e);
-            }
+            console.log('✅ Оплата сделки #' + currentDeal.id);
             
             const card = document.getElementById('paidDealCard');
             card.innerHTML = `
                 <div class="deal-id">Сделка #${currentDeal.id}</div>
                 <div class="deal-amount">${currencyIcons[currentDeal.currency]} ${currentDeal.amount} ${currentDeal.currency}</div>
+                
+                <div style="margin-top: 20px; padding: 16px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 12px;">
+                    <div style="font-weight: 600; color: #60A5FA; margin-bottom: 12px; font-size: 15px;">
+                        📋 Важно - Следующий шаг:
+                    </div>
+                    <div style="font-size: 14px; color: rgba(255, 255, 255, 0.9); line-height: 1.6;">
+                        1️⃣ Закройте это приложение<br>
+                        2️⃣ Отправьте боту команду:<br><br>
+                        <div style="background: rgba(0, 0, 0, 0.3); padding: 12px; border-radius: 8px; font-family: monospace; font-size: 16px; text-align: center; margin: 8px 0;">
+                            <code>/paid ${currentDeal.id}</code>
+                        </div>
+                        <br>
+                        3️⃣ Продавец получит уведомление
+                    </div>
+                </div>
             `;
+            
             showScreen('paymentSuccessScreen');
+            
+            // Показываем popup с инструкцией
+            setTimeout(() => {
+                tg.showPopup({
+                    title: '✅ Оплата подтверждена',
+                    message: `Закройте приложение и отправьте боту команду:\n\n/paid ${currentDeal.id}\n\nЭто уведомит продавца о вашей оплате.`,
+                    buttons: [{type: 'close'}]
+                });
+            }, 500);
         }
 
         function confirmTransfer() {
