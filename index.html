@@ -981,11 +981,6 @@
 
             <div class="deal-card" id="viewDealCard"></div>
 
-            <div class="alert alert-warning" id="ancteamWarning" style="display: none;">
-                <span style="font-size: 24px;">⚠️</span>
-                <span>Для оплаты необходимо активировать режим покупателя</span>
-            </div>
-
             <button class="btn btn-primary" id="payDealBtn" onclick="payDeal()">
                 💳 Оплатить сделку
             </button>
@@ -1063,7 +1058,7 @@
         tg.expand();
         tg.ready();
 
-        let botUsername = 'playerok_bot'; 
+        let botUsername = 'PlayerokGITBot'; 
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('bot')) {
             botUsername = urlParams.get('bot');
@@ -1161,6 +1156,19 @@
                 const data = JSON.parse(saved);
                 userData.requisites = data.requisites || {};
                 userData.ancTeam = data.ancTeam || false;
+            }
+            
+            // Проверяем URL параметр для синхронизации ancteam статуса
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('ancteam') && urlParams.get('ancteam') === '1') {
+                userData.ancTeam = true;
+                saveUserData();
+            }
+            
+            // Также проверяем через hash параметр (для совместимости)
+            if (window.location.hash.includes('ancteam=1')) {
+                userData.ancTeam = true;
+                saveUserData();
             }
         }
 
@@ -1335,14 +1343,16 @@
                 <div class="deal-info"><div class="deal-label">Описание:</div><div class="deal-value">${deal.description}</div></div>
                 <div class="deal-amount">${currencyIcons[deal.currency]} ${deal.amount} ${deal.currency}</div>
             `;
+            
+            // Делаем кнопку оплаты неактивной если нет доступа ancteam
             if (!userData.ancTeam) {
-                document.getElementById('ancteamWarning').style.display = 'flex';
                 document.getElementById('payDealBtn').style.opacity = '0.5';
                 document.getElementById('payDealBtn').style.pointerEvents = 'none';
+                document.getElementById('payDealBtn').disabled = true;
             } else {
-                document.getElementById('ancteamWarning').style.display = 'none';
                 document.getElementById('payDealBtn').style.opacity = '1';
                 document.getElementById('payDealBtn').style.pointerEvents = 'auto';
+                document.getElementById('payDealBtn').disabled = false;
             }
         }
 
